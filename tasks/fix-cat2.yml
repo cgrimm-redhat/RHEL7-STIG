@@ -477,7 +477,7 @@
       - patch
       - RHEL-07-020100
       - usb
-         
+
 - name: "MEDIUM | RHEL-07-020110 | PATCH | File system automounter must be disabled unless required."
   systemd:
       name: autofs
@@ -1798,12 +1798,22 @@
       - ipv4
 
 - name: "MEDIUM | RHEL-07-040670 | PATCH | Network interfaces must not be in promiscuous mode."
-  command: "true"
+  lineinfile:
+      state: present
+      dest: /etc/rc.d/rc.local
+      create: yes
+      mode: u+x
+      regexp: "^#?ip link set {{ item }} promisc"
+      line: "ip link set {{ item }} promisc off multicast off"
+  with_items: "{{ rhel_07_040670_audit.stdout_lines }}"
+  when: rhel_07_040670_audit.stdout_lines is defined
+  notify: restart rc-local
   tags:
       - cat2
       - medium
       - patch
       - RHEL-07-040670
+      - network
 
 - name: "MEDIUM | RHEL-07-040680 | PATCH | The system must be configured to prevent unrestricted mail relaying."
   lineinfile:
@@ -1930,6 +1940,7 @@
       - medium
       - patch
       - RHEL-07-041004
+      - authconfig
 
 - name: "MEDIUM | RHEL-07-041010 | PATCH | Wireless network adapters must be disabled."
   command: nmcli radio wifi off

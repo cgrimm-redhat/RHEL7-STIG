@@ -46,9 +46,9 @@
       - RHEL-07-021110
       - cron
       - always
-   
+
 - name: "MEDIUM | RHEL-07-020100 | AUDIT | USB mass storage must be disabled."
-  find: 
+  find:
       paths: /etc/modprobe.d/
       file_type: file
       recurse: yes
@@ -271,4 +271,18 @@
       - medium
       - logindefs
       - RHEL-07-020240
+      - always
+
+- name: "MEDIUM | RHEL-07-040670 | PATCH | Network interfaces must not be in promiscuous mode."
+  shell: >
+      ip link | grep -i promisc | awk '{print substr($2, 1, length($2)-1)}'
+  failed_when: no
+  changed_when: no
+  ignore_errors: yes
+  register: rhel_07_040670_audit
+  tags:
+      - cat2
+      - high
+      - audit
+      - RHEL-07-040670
       - always

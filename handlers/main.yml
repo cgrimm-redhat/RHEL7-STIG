@@ -29,7 +29,7 @@
       name: auditd
       state: restarted
       use: upstart
-      
+
 - name: restart xinetd
   service:
       name: xinetd
@@ -42,3 +42,9 @@
   service:
       name: rsyslog
       state: restarted
+
+- name: restart rc-local
+  service:
+    name: rc-local
+    state: restarted
+    enabled: yes
