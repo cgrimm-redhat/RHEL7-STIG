@@ -1,8 +1,10 @@
+---
 - name: Check OS Family
   fail:
       msg: "This role cna only be run against RedHat distributions. {{ ansible_os_family }} is not supported."
   when:
       - ansible_os_family != 'RedHat'
+
 
 - name: Check OS version and family
   fail:
