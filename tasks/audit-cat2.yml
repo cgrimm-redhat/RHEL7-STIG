@@ -247,6 +247,18 @@
       - RHEL-07-031010
       - always
 
+- name: "MEDIUM | RHEL-07-010070 | AUDIT | System must initiate a screensaver after a 15-minute period."
+  find:
+      paths: /etc/dconf/db/local.d
+      recurse: no
+      contains: "^#?idle-delay"
+  register: rhel_07_010070_audit
+  tags:
+      - cat2
+      - medium
+      - audit
+      - RHEL-07-010070
+
 - name: "MEDIUM | RHEL-07-020240 | PATCH | The operating system must define default permissions for all authenticated users in such a way that the user can only read and modify their own files."
   stat:
       path: "/etc/login.defs"
