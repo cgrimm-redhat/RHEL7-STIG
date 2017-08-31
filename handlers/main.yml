@@ -29,13 +29,22 @@
       name: auditd
       state: restarted
       use: upstart
-      
+
 - name: restart xinetd
   service:
       name: xinetd
       state: restarted
 
+- name: update dconf database
+  command: dconf update
+
 - name: restart rsyslogd
   service:
       name: rsyslog
       state: restarted
+
+- name: restart rc-local
+  service:
+    name: rc-local
+    state: restarted
+    enabled: yes

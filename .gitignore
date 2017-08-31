@@ -2,3 +2,5 @@
 *.retry
 .vagrant
 tests/*redhat-subscription
+.idea
+*.swp

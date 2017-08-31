@@ -50,13 +50,69 @@
       - patch
       - RHEL-07-010060
 
-- name: "MEDIUM | RHEL-07-010070 | PATCH | The operating system must initiate a screensaver after a 15-minute period of inactivity for graphical user interfaces."
-  command: "true"
+#- name: "MEDIUM | RHEL-07-010070 | PATCH | The operating system must initiate a screensaver after a 15-minute period of inactivity for graphical user interfaces."
+- block: # block executes only if gnome is installed and the dir /etc/dconf/db/local.d exists
+      # update the screensaver timeout file
+      - name: "MEDIUM | RHEL-07-010070 | PATCH | Screensaver after a 15-minute period. Update config"
+        ini_file:
+            dest: "{{ rhel_07_010070_audit.files.0.path }}"
+            section: "{{ item.section }}"
+            option: "{{ item.option }}"
+            value: "{{ item.value }}"
+            mode: 644
+            owner: root
+            group: root
+        with_items:
+            - section: "org/gnome/desktop/screensaver"
+              option: "lock-enabled"
+              value: "true"
+            - section: "org/gnome/desktop/screensaver"
+              option: "lock-delay"
+              value: "uint32 180"
+            - section: "org/gnome/desktop/session"
+              option: "idle-delay"
+              value: "uint32 900"
+        when: rhel_07_010070_audit.matched > 0
+
+      # create the screensaver timeout file
+      - name: "MEDIUM | RHEL-07-010070 | PATCH | Screensaver after a 15-minute period. Create config"
+        ini_file:
+            dest: /etc/dconf/db/local.d/00-screensaver
+            section: "{{ item.section }}"
+            option: "{{ item.option }}"
+            value: "{{ item.value }}"
+            mode: 644
+        with_items:
+            - section: "org/gnome/desktop/screensaver"
+              option: "lock-enabled"
+              value: "true"
+            - section: "org/gnome/desktop/screensaver"
+              option: "lock-delay"
+              value: "uint32 180"
+            - section: "org/gnome/desktop/session"
+              option: "idle-delay"
+              value: "uint32 900"
+        when: rhel_07_010070_audit.matched == 0
+
+      # cfeate the user lock file
+      - name: "MEDIUM | RHEL-07-010070 | PATCH | Screensaver after a 15-minute period. Create locks"
+        lineinfile:
+            dest: "/etc/dconf/db/local.d/locks/screensaver"
+            line: "{{ item }}"
+            create: yes
+            state: present
+        with_items:
+            - '# Lock desktop screensaver settings'
+            - '/org/gnome/desktop/session/idle-delay'
+            - '/org/gnome/desktop/screensaver/lock-enabled'
+            - '/org/gnome/desktop/screensaver/lock-delay'
+  when: rhel_07_010070_audit.examined != 0 # end of block, execute only if gnome is installed
   tags:
       - cat2
       - medium
       - patch
       - RHEL-07-010070
+
 
 - name: "MEDIUM | RHEL-07-010080 | PATCH | The operating system must set the idle delay setting for all connection types."
   command: "true"
@@ -421,7 +477,7 @@
       - patch
       - RHEL-07-020100
       - usb
-         
+
 - name: "MEDIUM | RHEL-07-020110 | PATCH | File system automounter must be disabled unless required."
   systemd:
       name: autofs
@@ -435,12 +491,16 @@
       - autofs
 
 - name: "MEDIUM | RHEL-07-020240 | PATCH | The operating system must define default permissions for all authenticated users in such a way that the user can only read and modify their own files."
-  command: "true"
+  lineinfile:
+      dest: /etc/login.defs
+      regexp: '^#?UMASK'
+      line: "UMASK 077"
   tags:
       - cat2
       - medium
       - patch
       - RHEL-07-020240
+      - logindefs
 
 - name: "MEDIUM | RHEL-07-020260 | PATCH | Vendor packaged system security patches and updates must be installed and up to date."
   command: "true"
@@ -1191,7 +1251,7 @@
       regexp: '^#?-w /etc/group'
       line: '-w /etc/group -p wa -k identity'
       create: yes
-  with_items: "{{ rhel_07_030871_audit.results }}"
+  with_items: "{{ rhel_07_auditd_audit.results }}"
   when: item.stat.exists
   notify: restart auditd
   tags:
@@ -1202,20 +1262,36 @@
       - auditd
 
 - name: "MEDIUM | RHEL-07-030872 | PATCH | The operating system must generate audit records for all account creations, modifications, disabling, and termination events that affect /etc/gshadow."
-  command: "true"
+  lineinfile:
+      dest: "{{ item.stat.path }}/audit.rules"
+      regexp: '^#?-w /etc/gshadow'
+      line: '-w /etc/gshadow -p wa -k identity'
+      create: yes
+  with_items: "{{ rhel_07_auditd_audit.results }}"
+  when: item.stat.exists
+  notify: restart auditd
   tags:
       - cat2
       - medium
       - patch
       - RHEL-07-030872
+      - auditd
 
 - name: "MEDIUM | RHEL-07-030873 | PATCH | The operating system must generate audit records for all account creations, modifications, disabling, and termination events that affect /etc/shadow."
-  command: "true"
+  lineinfile:
+      dest: "{{ item.stat.path }}/audit.rules"
+      regexp: '^#?-w /etc/shadow'
+      line: '-w /etc/shadow -p wa -k identity'
+      create: yes
+  with_items: "{{ rhel_07_auditd_audit.results }}"
+  when: item.stat.exists
+  notify: restart auditd
   tags:
       - cat2
       - medium
       - patch
       - RHEL-07-030873
+      - auditd
 
 - name: "MEDIUM | RHEL-07-030874 | PATCH | The operating system must generate audit records for all account creations, modifications, disabling, and termination events that affect /etc/opasswd."
   lineinfile:
@@ -1223,7 +1299,7 @@
       regexp: '^#?-w /etc/opasswd'
       line: '-w /etc/opasswd -p wa -k identity'
       create: yes
-  with_items: "{{ rhel_07_030874_audit.results }}"
+  with_items: "{{ rhel_07_auditd_audit.results }}"
   when: item.stat.exists
   notify: restart auditd
   tags:
@@ -1722,12 +1798,22 @@
       - ipv4
 
 - name: "MEDIUM | RHEL-07-040670 | PATCH | Network interfaces must not be in promiscuous mode."
-  command: "true"
+  lineinfile:
+      state: present
+      dest: /etc/rc.d/rc.local
+      create: yes
+      mode: u+x
+      regexp: "^#?ip link set {{ item }} promisc"
+      line: "ip link set {{ item }} promisc off multicast off"
+  with_items: "{{ rhel_07_040670_audit.stdout_lines }}"
+  when: rhel_07_040670_audit.stdout_lines is defined
+  notify: restart rc-local
   tags:
       - cat2
       - medium
       - patch
       - RHEL-07-040670
+      - network
 
 - name: "MEDIUM | RHEL-07-040680 | PATCH | The system must be configured to prevent unrestricted mail relaying."
   lineinfile:
@@ -1846,12 +1932,15 @@
       - RHEL-07-041003
 
 - name: "MEDIUM | RHEL-07-041004 | PATCH | The operating system must implement smart card logons for multifactor authentication for access to privileged accounts."
-  command: "true"
+  authconfig:
+      smartcardaction: yes
+      enablesmartcard: yes
   tags:
       - cat2
       - medium
       - patch
       - RHEL-07-041004
+      - authconfig
 
 - name: "MEDIUM | RHEL-07-041010 | PATCH | Wireless network adapters must be disabled."
   command: nmcli radio wifi off
@@ -1862,6 +1951,68 @@
       - patch
       - RHEL-07-041010
 
+- name: "MEDIUM | RHEL-07-010060 | PATCH | The operating system must enable a user session lock until that user re-establishes access using established identification and authentication procedures."
+  block:
+
+      # Find files with the matching option-key-value triplet
+      - ini_read:
+            section: "org/gnome/desktop/screensaver"
+            option: lock-enabled
+            path: "{{ item.path }}"
+        register: lock_enabled_files
+        with_items: "{{ rhel_07_010060_audit.files }}"
+
+      # If there are files that match, change the value
+      - ini_file:
+            path: "{{ item.ini_read.path }}"
+            section: "org/gnome/desktop/screensaver"
+            option: lock-enabled
+            value: "true"
+            create: no
+        when: item.ini_read != {}
+        with_items: "{{ lock_enabled_files.results }}"
+
+      # If there are no matching files, create 00-screensaver
+      - ini_file:
+            path: /etc/dconf/db/local.d/00-screensaver
+            section: "{{ item.section }}"
+            option: "{{ item.option }}"
+            value: "{{ item.value }}"
+            mode: 644
+            owner: root
+            group: root
+        when: rhel_07_010060_audit.files|length == 0 or lock_enabled_files.results|length == 0
+        with_items:
+            - section: "org/gnome/desktop/screensaver"
+              option: "lock-enabled"
+              value: 'true'
+            - section: "org/gnome/desktop/screensaver"
+              option: "lock-delay"
+              value: "uint32 180"
+            - section: "org/gnome/desktop/session"
+              option: "idle-delay"
+              value: "uint32 900"
+
+      # Prevent dconf from editing the values with a lock file
+      - lineinfile:
+            path: /etc/dconf/db/local.d/locks/screensaver
+            create: yes
+            line: "{{ item }}"
+            owner: root
+            group: root
+            mode: 644
+        with_items:
+            - "# Lock desktop screensaver settings"
+            - "/org/gnome/desktop/session/idle-delay"
+            - "/org/gnome/desktop/screensaver/lock-enabled"
+            - "/org/gnome/desktop/screensaver/lock-delay"
+        notify: update dconf database
+  tags:
+      - cat2
+      - medium
+      - patch
+      - RHEL-07-010060
+      - gui
 
 - name: "MEDIUM | RHEL-07-031010 | PATCH | The rsyslog daemon must not accept log messages from other servers unless the server is being used for log aggregation."
   lineinfile:
@@ -1874,3 +2025,4 @@
       - medium
       - patch
       - RHEL-07-031010
+
